@@ -1,0 +1,9 @@
+[Unit]
+Description=Log active application and window title every second
+
+[Service]
+Type=simple
+ExecStart=$HOME/.local/bin/apptime
+
+[Install]
+WantedBy=default.target

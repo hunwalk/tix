@@ -1,0 +1,11 @@
+.card .nav.flex-column > li {
+    border-bottom: none;
+}
+.nav-link.active a{
+    color: #ffffff!important;
+}
+.card-body::after, .card-footer::after, .card-header::after {
+    display: block;
+    clear: both;
+    content: none;
+}

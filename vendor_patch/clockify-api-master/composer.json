@@ -1,0 +1,41 @@
+{
+    "name": "jdecool/clockify-api",
+    "type": "library",
+    "description": "PHP Client for Clockify.me API",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jérémy DECOOL",
+            "email": "contact@jdecool.fr"
+        }
+    ],
+    "require": {
+        "php": "^7.3|^8.0",
+        "ext-json": "*",
+        "guzzlehttp/guzzle": "^7.2",
+        "http-interop/http-factory-guzzle": "^1.0",
+        "myclabs/php-enum": "^1.7",
+        "php-http/client-common": "^2.3",
+        "php-http/discovery": "^1.12",
+        "php-http/guzzle7-adapter": "^0.1.1",
+        "php-http/httplug": "^2.1"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.1",
+        "phpstan/phpstan": "^0.12.57",
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "JDecool\\Clockify\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "JDecool\\Clockify\\Tests\\": "tests"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

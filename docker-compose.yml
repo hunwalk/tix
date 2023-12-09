@@ -1,0 +1,61 @@
+version: '3.5'
+services:
+
+  nginx:
+    container_name: ${APP_NAME}_${APP_ENV}_nginx
+    image: nginx:alpine
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - default
+      - proxynet
+
+  app:
+    container_name: ${APP_NAME}_${APP_ENV}_app
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    volumes:
+      - .:/var/www/html
+      - ./docker/app/entrypoint.sh:/scripts/entrypoint.sh
+    links:
+      - mysql
+    networks:
+      - default
+      - proxynet
+
+  mysql:
+    container_name: ${APP_NAME}_${APP_ENV}_mysql
+    image: mariadb:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_LOGIN}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - default
+      - proxynet
+
+  phpmyadmin:
+    container_name: ${APP_NAME}_${APP_ENV}_phpmyadmin
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: ${DB_HOST}
+      PMA_USER: ${DB_LOGIN}
+      PMA_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - default
+      - proxynet
+
+volumes:
+  db-data:
+
+networks:
+  proxynet:
+    name: proxy_network
+    external: true

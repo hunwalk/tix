@@ -1,0 +1,170 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * This piece of script is intended to be run by systemd as a service.
+ * It will log the active application and window title every second.
+ * The log file will be located at ~/.local/share/app_usage_log.txt
+ *
+ * To install the service, copy this file to ~/.local/bin/apptime
+ * and copy the systemd service file to ~/.config/systemd/user/apptime.service
+ *
+ * Then, enable and start the service:
+ * systemctl --user enable apptime
+ * systemctl --user start apptime
+ *
+ * To view the log file, run:
+ * tail -f ~/.local/share/app_usage_log.txt
+ *
+ * Supported OS: Linux
+ * macOS might work, but not tested
+ *
+ */
+
+
+// if windows, exit
+if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+    echo "This script is intended to be run on Linux only.\n";
+    exit(1);
+}
+
+// check if xdotool is installed
+if (shell_exec("which xdotool") == "") {
+    echo "Please install xdotool first.\n";
+    exit(1);
+}
+
+$logFileName = 'app_usage_log.txt';
+
+$lastAppName = '';
+$lastWindowTitle = '';
+
+// Initialize start time to null initially
+$startTime = null;
+
+// Define an array of JetBrains product names
+$jetBrainsProducts = [
+    'phpstorm',
+    'pycharm',
+    // Add more JetBrains product names as needed
+];
+
+// Define an array of known application strings
+$knownApplicationStrings = [
+    'slack',
+    'firefox',
+    // Add more known application strings as needed
+];
+
+// Variable to track if the first entry has been captured
+$firstEntryCaptured = false;
+
+// Declare that we want to handle signals
+declare(ticks = 1);
+
+// Function to write the last entry before exiting
+function writeLastEntry() {
+    global $logFileName, $lastAppName, $lastWindowTitle, $startTime;
+
+    // Get the current timestamp
+    $currentTime = time();
+
+    // Calculate the duration for the last entry
+    $duration = $startTime !== null ? $currentTime - $startTime : 0;
+
+    // Format the last entry
+    $logEntry = "$lastAppName | $lastWindowTitle | start_time: $startTime ; end_time: $currentTime ; duration: $duration";
+
+    // Append the last entry to the log file
+    file_put_contents($logFileName, $logEntry . PHP_EOL, FILE_APPEND);
+
+    // Indicate script termination
+    $terminationMessage = "Script terminated at " . date('Y-m-d H:i:s');
+    file_put_contents($logFileName, $terminationMessage . PHP_EOL, FILE_APPEND);
+}
+
+// Signal handler for Ctrl+C (SIGINT)
+function handleCtrlC($signal) {
+    global $logFileName, $lastAppName, $lastWindowTitle, $startTime;
+
+    // Call writeLastEntry to write the termination message
+    writeLastEntry();
+
+    // Exit the script
+    exit();
+}
+
+// Register the signal handler for Ctrl+C
+pcntl_signal(SIGINT, 'handleCtrlC');
+
+while (true) {
+    try {
+        // Get the currently focused window's title and remove line breaks
+        $windowTitle = str_replace(["\r", "\n"], ' ', shell_exec("xdotool getactivewindow getwindowname"));
+
+        // Get the application path using readlink
+        $appPath = shell_exec("readlink -f /proc/\$(xdotool getwindowpid \"\$(xdotool getwindowfocus)\")/exe");
+
+        // Get the current timestamp
+        $currentTime = time();
+
+        if (!empty($appPath)) {
+            $appPath = trim($appPath); // Remove trailing newline characters
+
+            // Check if the application path contains any JetBrains product name
+            $appName = 'other'; // Default name for other applications
+            foreach ($jetBrainsProducts as $product) {
+                if (str_contains($appPath, $product)) {
+                    $appName = $product;
+                    break;
+                }
+            }
+
+            // Check if the application path contains any known application string
+            foreach ($knownApplicationStrings as $knownString) {
+                if (str_contains($appPath, $knownString)) {
+                    $appName = strtolower($knownString); // Use lowercase for consistency
+                    break;
+                }
+            }
+
+            // If the window title is empty, assume it's in Activities Overview
+            if (empty($windowTitle)) {
+                $windowTitle = 'Activities Overview';
+            }
+
+            // If the application name or window title has changed, append to the log file
+            if ($lastAppName !== $appName || $lastWindowTitle !== $windowTitle) {
+                // If this is the first entry, initialize startTime
+                if (!$firstEntryCaptured) {
+                    $startTime = $currentTime;
+                    $firstEntryCaptured = true;
+                }
+
+                // Calculate the duration for the previous entry
+                $duration = $startTime !== null ? $currentTime - $startTime : 0;
+
+                // Format the entry
+                $logEntry = "$appName | $windowTitle | start_time: $startTime ; end_time: $currentTime ; duration: $duration";
+
+                // Append the entry to the log file
+                file_put_contents($logFileName, $logEntry . PHP_EOL, FILE_APPEND);
+
+                // Update the last application name and window title
+                $lastAppName = $appName;
+                $lastWindowTitle = $windowTitle;
+                $startTime = $currentTime; // Set the start time for the current entry
+            }
+        }
+    } catch (Exception $e) {
+        // Handle the exception (e.g., for Activities overview warnings)
+        // You can add logging or error handling here as needed
+    }
+
+    // Sleep for 1 second
+    sleep(1);
+}
+?>
+
+
+
